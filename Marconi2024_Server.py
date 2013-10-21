@@ -39,7 +39,7 @@ FREQ = WithUnit(1,'MHz')
 CARRIER_MODE = 'FIXED'
 SWEEP_RANGE_START = WithUnit(1,'MHz')
 SWEEP_RANGE_STOP = WithUnit(2,'MHz')
-SWEEP_STEP = 0.05
+SWEEP_STEP = WithUnit(0.05, 'MHz')
 SWEEP_TIME = 50
 SWEEP_MODE = 'SNGL'
 SWEEP_SHAPE = 'LIN'
@@ -52,10 +52,10 @@ START_WITH_DEFAULTS = False
 
 # Marconi Extreme Values (should be set according to
 # the max and min values the marconi actually will allow).
-FREQ_MIN = 0.009    # 9 KHz
-FREQ_MAX = 2400     # 2400 MHz
-POWER_MIN = -137    # -137 dBm
-POWER_MAX = 10      # 10 dBm
+FREQ_MIN = WithUnit(9,"kHz")    # 9 KHz
+FREQ_MAX = WithUnit(2400, 'MHz')     # 2400 MHz
+POWER_MIN = WithUnit(-137,'dBm')    # -137 dBm
+POWER_MAX = WithUnit(10,'dBm')      # 10 dBm
 
 class MarconiServer(SerialDeviceServer):
     """Server for basic CW control of Marconi RF Generator."""
@@ -213,7 +213,7 @@ class MarconiServer(SerialDeviceServer):
         False represents OFF"""       
         return self._CarrierOnOff(state)
 
-    @setting(12, "Amplitude", level = 'v', returns = "v")
+    @setting(12, "Amplitude", level = 'v[dBm]', returns = "v[dBm]")
     def Amplitude(self, c, level=None):
         """Get or set the power level (dBm)"""
         return self._Amplitude(level)
@@ -243,7 +243,7 @@ class MarconiServer(SerialDeviceServer):
         """Get or set the ending frequency for carrier frequency sweeps (MHZ)"""
         return self._SweepRangeStop(stop)
 
-    @setting(23, "Sweep Step", step = 'v', returns = 'v')
+    @setting(23, "Sweep Step", step = 'v[MHz]', returns = 'v[MHz]')
     def SweepStep(self, c, step=None):
         """Get or set the size of the sweep step (MHZ)"""
         return self._SweepStep(step)
@@ -343,21 +343,26 @@ class MarconiServer(SerialDeviceServer):
     def _Amplitude(self, level=None):
         """Sets power level, enter power in dBm"""
         if level is not None:
+            level = level['dBm']
             checkedLevel = self.checkPower(level)
             command = self.PowerSetStr(checkedLevel)
             yield self.ser.write(command)
             self.marDict['power'] = checkedLevel
-        returnValue(self.marDict['power'])
+        value = self.marDict['power']
+        returnValue(WithUnit(value, 'dBm'))
     
     def checkPower(self, level):
+        level = level['dBm']
         if level < self.marDict['power_min']:
             print "*** WARNING: attempt to set power below minimum value."
             print "*** WARNING: setting to minimum value instead."
-            return self.marDict['power_min']
+            value = self.marDict['power_min']
+            return WithUnit(value, 'dBm')
         elif level > self.marDict['power_max']:
             print "*** WARNING: attempt to set power above maximum value."
             print "*** WARNING: setting to maximum value instad."
-            return self.marDict['power_max']
+            value = self.marDict['power_max'] 
+            return WithUnit(value, 'dBm')
         return level
 
     @inlineCallbacks
@@ -373,14 +378,17 @@ class MarconiServer(SerialDeviceServer):
         returnValue(WithUnit(value,'MHz'))
 
     def checkFreq(self, freq):
+        freq = freq['MHz']
         if freq < self.marDict['freq_min']:
             print "*** WARNING: attempt to set frequency below minimum value."
             print "*** WARNING: setting to minimum value instead."
-            return self.marDict['freq_min']
+            value = self.marDict['freq_min']
+            return WithUnit(value, 'MHz')
         elif freq > self.marDict['freq_max']:
             print "*** WARNING: attempt to set frequency above maximum value."
             print "*** WARNING: setting to maximum value instad."
-            return self.marDict['freq_max']
+            value = self.marDict['freq_max']
+            return WithUnit(value, 'MHz')
         return freq
 
     # ===== SWEEP =====
@@ -412,20 +420,24 @@ class MarconiServer(SerialDeviceServer):
     def _SweepRangeStop(self, stop=None):
         """Get or set the stoping point for carrier frequency sweeps (MHZ)."""
         if stop is not None:
+            stop = stop['MHz']
             checkedStop = self.checkFreq(stop)
             command = self.SweepStartSetStr(checkedStop)
             yield self.ser.write(command)
             self.marDict['sweep_range_stop'] = checkedStop
-        returnValue(self.marDict['sweep_range_stop'])
+        value = self.marDict['sweep_range_stop']
+        returnValue(WithUnit(value,'MHz'))
 
     @inlineCallbacks
     def _SweepStep(self, step=None):
         """Get or set the sweep step (MHz)"""
         if step is not None:
+            step = step['MHz'] 
             command = self.SweepStepSetStr(step)
             yield self.ser.write(command)
             self.marDict['sweep_step'] = step
-        returnValue(self.marDict['sweep_step'])
+        value = self.marDict['sweep_step']
+        returnValue(WithUnit(value, 'MHz'))
 
     @inlineCallbacks
     def _SweepTime(self, time=None):
